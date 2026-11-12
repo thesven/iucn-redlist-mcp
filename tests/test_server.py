@@ -74,6 +74,8 @@ async def test_server_tools(mock_client: IucnClient) -> None:
     assert "get_conservation_actions" in tool_names
     assert "get_species_narrative" in tool_names
     assert "get_regional_assessment" in tool_names
+    assert "get_species_habitats" in tool_names
+    assert "filter_threatened_species" in tool_names
 
     res = await server.call_tool("search_species", {"query": "Lion"})
     assert "Panthera leo" in res.content[0].text
@@ -95,6 +97,12 @@ async def test_server_tools(mock_client: IucnClient) -> None:
         {"scientific_name": "Ursus maritimus", "region_identifier": "europe"},
     )
     assert "VU" in res.content[0].text
+
+    res = await server.call_tool("get_species_habitats", {"scientific_name": "Ursus maritimus"})
+    assert "Marine" in res.content[0].text
+
+    res = await server.call_tool("filter_threatened_species", {"category": "VU"})
+    assert "Ursus maritimus" in res.content[0].text
 
 
 @pytest.mark.asyncio
@@ -128,3 +136,11 @@ async def test_server_tool_errors(failing_client: IucnClient) -> None:
         "get_regional_assessment", {"scientific_name": "NonexistentRareCreature123"}
     )
     assert "failed" in res.content[0].text
+
+    res = await server.call_tool(
+        "get_species_habitats", {"scientific_name": "NonexistentRareCreature123"}
+    )
+    assert "failed" in res.content[0].text
+
+    res = await server.call_tool("filter_threatened_species", {"category": "EX"})
+    assert "No taxa found" in res.content[0].text

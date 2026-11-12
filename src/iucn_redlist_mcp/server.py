@@ -148,6 +148,45 @@ def create_server(client: IucnClient | None = None) -> MCPServer:
         except IucnError as exc:
             return {"error": str(exc), "summary": f"Regional assessment lookup failed: {exc}"}
 
+    @server.tool()
+    def get_species_habitats(scientific_name: str, taxon_id: int | None = None) -> dict[str, Any]:
+        """Fetch IUCN Habitat Classification Scheme associations and suitability for a species."""
+        try:
+            habitats = api.get_species_habitats(scientific_name=scientific_name, taxon_id=taxon_id)
+            lines = [
+                f"- [{h.get('code')}] {h.get('name')} ({h.get('suitability')})" for h in habitats
+            ]
+            summary = "\n".join(lines) if lines else f"No habitats recorded for {scientific_name}."
+            return {"habitats": habitats, "count": len(habitats), "summary": summary}
+        except IucnError as exc:
+            return {
+                "error": str(exc),
+                "habitats": [],
+                "count": 0,
+                "summary": f"Habitat lookup failed: {exc}",
+            }
+
+    @server.tool()
+    def filter_threatened_species(category: str | None = None, limit: int = 20) -> dict[str, Any]:
+        """Filter species catalog by extinction risk category (e.g. CR, EN, VU)."""
+        try:
+            taxa = api.filter_threatened_species(category=category, limit=limit)
+            cat_label = category.upper() if category else "all categories"
+            lines = [f"- {t.get('scientific_name')}: [{t.get('category')}]" for t in taxa]
+            summary = (
+                f"Threatened taxa ({cat_label}):\n" + "\n".join(lines)
+                if lines
+                else f"No taxa found for {cat_label}."
+            )
+            return {"taxa": taxa, "count": len(taxa), "summary": summary}
+        except IucnError as exc:
+            return {
+                "error": str(exc),
+                "taxa": [],
+                "count": 0,
+                "summary": f"Threatened filter failed: {exc}",
+            }
+
     return server
 
 

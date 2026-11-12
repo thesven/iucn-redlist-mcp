@@ -45,6 +45,10 @@ ICONIC_SPECIES_FALLBACK: dict[str, dict[str, Any]] = {
             "habitat": "Sea ice over the continental shelf and inter-island archipelagos.",
             "population": "Estimated 22,000–31,000 individuals with climate-induced decline.",
         },
+        "habitats": [
+            {"code": "9.1", "name": "Marine Neritic - Pelagic", "suitability": "Suitable"},
+            {"code": "10.1", "name": "Marine Oceanic - Epipelagic", "suitability": "Suitable"},
+        ],
     },
     "danaus plexippus": {
         "taxon_id": 162446702,
@@ -70,6 +74,10 @@ ICONIC_SPECIES_FALLBACK: dict[str, dict[str, Any]] = {
             "habitat": "Open meadows, roadsides, and overwintering oyamel fir forests.",
             "population": "Populations have declined dramatically over recent decades.",
         },
+        "habitats": [
+            {"code": "1.4", "name": "Forest - Subtropical/Tropical Dry", "suitability": "Suitable"},
+            {"code": "3.4", "name": "Shrubland - Subtropical/Tropical", "suitability": "Suitable"},
+        ],
     },
     "panthera tigris": {
         "taxon_id": 15955,
@@ -99,6 +107,18 @@ ICONIC_SPECIES_FALLBACK: dict[str, dict[str, Any]] = {
             "habitat": "Tropical rainforests, evergreen forests, mangrove swamps, and grasslands.",
             "population": "Estimated 3,726–5,578 wild tigers remaining.",
         },
+        "habitats": [
+            {
+                "code": "1.5",
+                "name": "Forest - Subtropical/Tropical Lowland",
+                "suitability": "Suitable",
+            },
+            {
+                "code": "4.5",
+                "name": "Grassland - Subtropical/Tropical Dry",
+                "suitability": "Suitable",
+            },
+        ],
     },
 }
 
@@ -297,6 +317,68 @@ class IucnClient:
                     "criteria": base.get("criteria"),
                 }
             raise
+
+    def get_species_habitats(
+        self, scientific_name: str, taxon_id: int | None = None
+    ) -> list[dict[str, Any]]:
+        """Fetch IUCN Habitat Classification Scheme associations for a species."""
+        name_lower = scientific_name.strip().lower()
+        if not self.token and name_lower in ICONIC_SPECIES_FALLBACK:
+            return ICONIC_SPECIES_FALLBACK[name_lower].get("habitats", [])
+
+        path = f"/habitats/scientific_name/{scientific_name}"
+        try:
+            data = self._request(path, {})
+            habitats = data.get("habitats", []) if isinstance(data, dict) else []
+            return [
+                {
+                    "code": h.get("code"),
+                    "name": h.get("name") or h.get("title"),
+                    "suitability": h.get("suitability", "Suitable"),
+                    "major_importance": h.get("major_importance", False),
+                }
+                for h in habitats
+            ]
+        except IucnError:
+            if name_lower in ICONIC_SPECIES_FALLBACK:
+                return ICONIC_SPECIES_FALLBACK[name_lower].get("habitats", [])
+            raise
+
+    def filter_threatened_species(
+        self, category: str | None = None, limit: int = 20
+    ) -> list[dict[str, Any]]:
+        """Filter species catalog by extinction risk category (e.g. CR, EN, VU)."""
+        cat_upper = category.upper() if category else None
+        if self.token and cat_upper:
+            try:
+                data = self._request(f"/taxa/category/{cat_upper}", {"limit": min(limit, 100)})
+                taxa = data.get("taxa", []) if isinstance(data, dict) else []
+                return [
+                    {
+                        "scientific_name": t.get("scientific_name"),
+                        "category": t.get("category"),
+                        "taxon_id": t.get("taxon_id"),
+                    }
+                    for t in taxa[:limit]
+                ]
+            except IucnError:
+                pass
+
+        results = []
+        for s in ICONIC_SPECIES_FALLBACK.values():
+            if cat_upper and s["category"] != cat_upper:
+                continue
+            results.append(
+                {
+                    "scientific_name": s["scientific_name"],
+                    "common_name": s["common_name"],
+                    "category": s["category"],
+                    "category_title": s["category_title"],
+                    "population_trend": s["population_trend"],
+                    "taxon_id": s["taxon_id"],
+                }
+            )
+        return results[:limit]
 
     def _request(self, path: str, params: dict[str, Any]) -> Any:
         url = f"{self.base_url}{path}"

@@ -78,6 +78,8 @@ async def main() -> None:
                 "get_conservation_actions",
                 "get_species_narrative",
                 "get_regional_assessment",
+                "get_species_habitats",
+                "filter_threatened_species",
             }
             missing = expected_tools - tool_names
             assert expected_tools.issubset(tool_names), f"Missing tools: {missing}"

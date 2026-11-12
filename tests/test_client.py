@@ -186,3 +186,56 @@ def test_api_error_handling() -> None:
     client2 = IucnClient(token="api-token", transport=httpx.MockTransport(handler_invalid_json))
     with pytest.raises(IucnError, match="Invalid JSON"):
         client2.get_species_assessment("Unknown species non-fallback")
+
+
+def test_get_species_habitats() -> None:
+    # 1. Fallback habitat lookup
+    client_fallback = IucnClient(token=None)
+    habs = client_fallback.get_species_habitats("Ursus maritimus")
+    assert len(habs) >= 1
+    assert habs[0]["code"] == "9.1"
+
+    # 2. API habitat lookup
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert "/habitats/scientific_name/" in request.url.path
+        return httpx.Response(
+            200,
+            json={
+                "habitats": [
+                    {
+                        "code": "1.4",
+                        "name": "Forest - Subtropical/Tropical Dry",
+                        "suitability": "Suitable",
+                    }
+                ]
+            },
+        )
+
+    client_api = IucnClient(token="api-token", transport=httpx.MockTransport(handler))
+    api_habs = client_api.get_species_habitats("Test species")
+    assert len(api_habs) == 1
+    assert api_habs[0]["code"] == "1.4"
+
+
+def test_filter_threatened_species() -> None:
+    # 1. Fallback filter
+    client_fallback = IucnClient(token=None)
+    vu_species = client_fallback.filter_threatened_species(category="VU")
+    assert any(s["scientific_name"] == "Ursus maritimus" for s in vu_species)
+
+    # 2. API filter
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert "/taxa/category/CR" in request.url.path
+        return httpx.Response(
+            200,
+            json={
+                "taxa": [
+                    {"scientific_name": "Critically Rare Taxon", "category": "CR", "taxon_id": 999}
+                ]
+            },
+        )
+
+    client_api = IucnClient(token="api-token", transport=httpx.MockTransport(handler))
+    cr_species = client_api.filter_threatened_species(category="CR")
+    assert len(cr_species) == 1
+    assert cr_species[0]["scientific_name"] == "Critically Rare Taxon"

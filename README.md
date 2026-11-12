@@ -13,7 +13,9 @@ Fills a major gap in the ecological AI ecosystem by providing AI models and auto
 ## Key Features
 
 - **Authoritative Red List Categories**: Retrieve global extinction risk statuses (`EX`, `EW`, `CR`, `EN`, `VU`, `NT`, `LC`, `DD`) along with specific assessment criteria and publication years.
+- **IUCN Habitat Classification**: Query standardized habitat associations (forest, wetland, marine pelagic, shrubland) with suitability ratings.
 - **CMP Threat Classifications**: Inspect standardized conservation threats (e.g., habitat loss, agricultural encroachment, poaching, climate disruption) alongside severity and timing.
+- **Threatened Species Category Filter**: Filter species catalogs across threat categories (e.g. all CR taxa).
 - **Conservation Actions Tracking**: Differentiate between conservation measures currently in place versus interventions required.
 - **Ecological & Range Narratives**: Query detailed textual summaries of geographic distributions, habitat preferences, and population trends.
 - **Multi-Scope & Regional Assessments**: Supports querying both global assessments and regional Red Lists (such as European and Mediterranean scopes).
@@ -27,6 +29,8 @@ Fills a major gap in the ecological AI ecosystem by providing AI models and auto
 | :--- | :--- |
 | `search_species` | Search taxa in the Red List database to resolve common/scientific names to SIS IDs. |
 | `get_species_assessment` | Fetch the current Red List category, assessment criteria, year, and population trend. |
+| `get_species_habitats` | Fetch standardized IUCN Habitat Classification Scheme associations and suitability. |
+| `filter_threatened_species` | Filter species catalog by extinction risk category (e.g. `CR`, `EN`, `VU`). |
 | `get_species_threats` | Retrieve classified CMP conservation threats with timing and severity. |
 | `get_conservation_actions` | Retrieve conservation actions in place and actions needed. |
 | `get_species_narrative` | Fetch descriptive narrative context (range, habitat ecology, and population notes). |
