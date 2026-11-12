@@ -11,6 +11,34 @@ from iucn_redlist_mcp.server import create_server
 def mock_client() -> IucnClient:
     def handler(request: httpx.Request) -> httpx.Response:
         path = request.url.path
+        if "/assessments" in path:
+            return httpx.Response(
+                200,
+                json={
+                    "assessments": [
+                        {
+                            "year_published": 2015,
+                            "red_list_category": {"code": "EN", "description": "Endangered"},
+                            "criteria": "A2cd",
+                            "scope": "Global",
+                        }
+                    ]
+                },
+            )
+        if "/countries" in path:
+            return httpx.Response(
+                200,
+                json={
+                    "countries": [
+                        {"code": "CAN", "name": "Canada", "presence": "Extant", "origin": "Native"}
+                    ]
+                },
+            )
+        if "/use_and_trade" in path:
+            return httpx.Response(
+                200,
+                json={"use_and_trade": [{"purpose": "Medicine", "source": "Wild"}]},
+            )
         if "/taxa/scientific_name" in path:
             return httpx.Response(
                 200,
@@ -76,6 +104,9 @@ async def test_server_tools(mock_client: IucnClient) -> None:
     assert "get_regional_assessment" in tool_names
     assert "get_species_habitats" in tool_names
     assert "filter_threatened_species" in tool_names
+    assert "get_historical_assessments" in tool_names
+    assert "get_species_countries" in tool_names
+    assert "get_species_use_and_trade" in tool_names
 
     res = await server.call_tool("search_species", {"query": "Lion"})
     assert "Panthera leo" in res.content[0].text
@@ -103,6 +134,19 @@ async def test_server_tools(mock_client: IucnClient) -> None:
 
     res = await server.call_tool("filter_threatened_species", {"category": "VU"})
     assert "Ursus maritimus" in res.content[0].text
+
+    res = await server.call_tool(
+        "get_historical_assessments", {"scientific_name": "Panthera tigris"}
+    )
+    assert "EN" in res.content[0].text
+
+    res = await server.call_tool("get_species_countries", {"scientific_name": "Ursus maritimus"})
+    assert "Canada" in res.content[0].text
+
+    res = await server.call_tool(
+        "get_species_use_and_trade", {"scientific_name": "Panthera tigris"}
+    )
+    assert "Medicine" in res.content[0].text
 
 
 @pytest.mark.asyncio
@@ -144,3 +188,18 @@ async def test_server_tool_errors(failing_client: IucnClient) -> None:
 
     res = await server.call_tool("filter_threatened_species", {"category": "EX"})
     assert "No taxa found" in res.content[0].text
+
+    res = await server.call_tool(
+        "get_historical_assessments", {"scientific_name": "NonexistentRareCreature123"}
+    )
+    assert "No historical assessments" in res.content[0].text or "failed" in res.content[0].text
+
+    res = await server.call_tool(
+        "get_species_countries", {"scientific_name": "NonexistentRareCreature123"}
+    )
+    assert "No countries recorded" in res.content[0].text or "failed" in res.content[0].text
+
+    res = await server.call_tool(
+        "get_species_use_and_trade", {"scientific_name": "NonexistentRareCreature123"}
+    )
+    assert "No trade" in res.content[0].text or "failed" in res.content[0].text

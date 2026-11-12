@@ -380,6 +380,124 @@ class IucnClient:
             )
         return results[:limit]
 
+    def get_historical_assessments(
+        self, scientific_name: str, taxon_id: int | None = None
+    ) -> list[dict[str, Any]]:
+        """Fetch historical extinction risk assessment timeline across past Red List editions."""
+        name_lower = scientific_name.strip().lower()
+        path = f"/taxa/scientific_name/{scientific_name}/assessments"
+        if self.token:
+            try:
+                data = self._request(path, {})
+                assessments = data.get("assessments", []) if isinstance(data, dict) else []
+                return [
+                    {
+                        "year_published": a.get("year_published"),
+                        "category": a.get("red_list_category", {}).get("code"),
+                        "category_title": a.get("red_list_category", {}).get("description"),
+                        "criteria": a.get("criteria"),
+                        "scope": a.get("scope", "Global"),
+                    }
+                    for a in assessments
+                ]
+            except IucnError:
+                pass
+
+        if name_lower in ICONIC_SPECIES_FALLBACK:
+            s = ICONIC_SPECIES_FALLBACK[name_lower]
+            return [
+                {
+                    "year_published": s.get("year_published", 2022),
+                    "category": s.get("category"),
+                    "category_title": s.get("category_title"),
+                    "criteria": s.get("criteria"),
+                    "scope": "Global",
+                }
+            ]
+        return []
+
+    def get_species_countries(
+        self, scientific_name: str, taxon_id: int | None = None
+    ) -> list[dict[str, Any]]:
+        """Retrieve countries of occurrence with native, introduced, or vagrant presence status."""
+        name_lower = scientific_name.strip().lower()
+        path = f"/countries/scientific_name/{scientific_name}"
+        if self.token:
+            try:
+                data = self._request(path, {})
+                countries = data.get("countries", []) if isinstance(data, dict) else []
+                return [
+                    {
+                        "code": c.get("code"),
+                        "name": c.get("name") or c.get("country"),
+                        "presence": c.get("presence", "Extant"),
+                        "origin": c.get("origin", "Native"),
+                    }
+                    for c in countries
+                ]
+            except IucnError:
+                pass
+
+        fallback_countries = {
+            "ursus maritimus": [
+                {"code": "CAN", "name": "Canada", "presence": "Extant", "origin": "Native"},
+                {"code": "USA", "name": "United States", "presence": "Extant", "origin": "Native"},
+                {"code": "GRL", "name": "Greenland", "presence": "Extant", "origin": "Native"},
+                {"code": "NOR", "name": "Norway", "presence": "Extant", "origin": "Native"},
+                {
+                    "code": "RUS",
+                    "name": "Russian Federation",
+                    "presence": "Extant",
+                    "origin": "Native",
+                },
+            ],
+            "panthera tigris": [
+                {"code": "IND", "name": "India", "presence": "Extant", "origin": "Native"},
+                {
+                    "code": "RUS",
+                    "name": "Russian Federation",
+                    "presence": "Extant",
+                    "origin": "Native",
+                },
+                {"code": "IDN", "name": "Indonesia", "presence": "Extant", "origin": "Native"},
+            ],
+        }
+        return fallback_countries.get(name_lower, [])
+
+    def get_species_use_and_trade(
+        self, scientific_name: str, taxon_id: int | None = None
+    ) -> list[dict[str, Any]]:
+        """Fetch commercial use, international trade pressures, and CITES exploitation records."""
+        name_lower = scientific_name.strip().lower()
+        path = f"/use_and_trade/scientific_name/{scientific_name}"
+        if self.token:
+            try:
+                data = self._request(path, {})
+                uses = data.get("use_and_trade", []) if isinstance(data, dict) else []
+                return [
+                    {
+                        "purpose": u.get("purpose") or u.get("name"),
+                        "source": u.get("source"),
+                        "form": u.get("form"),
+                        "scale": u.get("scale", "International"),
+                    }
+                    for u in uses
+                ]
+            except IucnError:
+                pass
+
+        fallback_trade = {
+            "panthera tigris": [
+                {"purpose": "Medicine / Traditional remedies", "scale": "International (Illegal)"},
+                {"purpose": "Handicrafts / Skins & Bones", "scale": "International (Illegal)"},
+            ],
+            "ursus maritimus": [
+                {"purpose": "Sport hunting / Trophies", "scale": "National & International"},
+                {"purpose": "Handicrafts & subsistence", "scale": "Local / Indigenous"},
+            ],
+        }
+        return fallback_trade.get(name_lower, [])
+
     def _request(self, path: str, params: dict[str, Any]) -> Any:
         url = f"{self.base_url}{path}"
         headers = {}

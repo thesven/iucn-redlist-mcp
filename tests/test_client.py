@@ -239,3 +239,21 @@ def test_filter_threatened_species() -> None:
     cr_species = client_api.filter_threatened_species(category="CR")
     assert len(cr_species) == 1
     assert cr_species[0]["scientific_name"] == "Critically Rare Taxon"
+
+
+def test_historical_assessments_countries_and_trade() -> None:
+    client = IucnClient()
+
+    # Historical assessments fallback
+    hist = client.get_historical_assessments("Panthera tigris")
+    assert len(hist) == 1
+    assert hist[0]["category"] == "EN"
+
+    # Countries fallback
+    countries = client.get_species_countries("Ursus maritimus")
+    assert any(c["code"] == "CAN" for c in countries)
+
+    # Trade fallback
+    trade = client.get_species_use_and_trade("Panthera tigris")
+    assert len(trade) >= 1
+    assert "Medicine" in trade[0]["purpose"]

@@ -35,6 +35,9 @@ Fills a major gap in the ecological AI ecosystem by providing AI models and auto
 | `get_conservation_actions` | Retrieve conservation actions in place and actions needed. |
 | `get_species_narrative` | Fetch descriptive narrative context (range, habitat ecology, and population notes). |
 | `get_regional_assessment` | Retrieve regional Red List status for a specified geographic scope (e.g., `europe`). |
+| `get_historical_assessments` | Fetch historical Red List assessments tracking extinction risk trajectories over time. |
+| `get_species_countries` | List countries where a species is native, introduced, or regionally extinct. |
+| `get_species_use_and_trade` | Retrieve international wildlife trade, domestic utilization, and commercial harvesting patterns. |
 
 ---
 

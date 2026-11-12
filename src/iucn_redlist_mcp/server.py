@@ -187,6 +187,82 @@ def create_server(client: IucnClient | None = None) -> MCPServer:
                 "summary": f"Threatened filter failed: {exc}",
             }
 
+    @server.tool()
+    def get_historical_assessments(
+        scientific_name: str, taxon_id: int | None = None
+    ) -> dict[str, Any]:
+        """Fetch historical extinction risk assessment timeline across past Red List editions."""
+        try:
+            history = api.get_historical_assessments(
+                scientific_name=scientific_name, taxon_id=taxon_id
+            )
+            lines = [
+                f"- {a.get('year_published')}: [{a.get('category')}] {a.get('category_title')}"
+                for a in history
+            ]
+            summary = (
+                f"Historical assessments for {scientific_name}:\n" + "\n".join(lines)
+                if history
+                else f"No historical assessments found for {scientific_name}."
+            )
+            return {"assessments": history, "count": len(history), "summary": summary}
+        except IucnError as exc:
+            return {
+                "error": str(exc),
+                "assessments": [],
+                "count": 0,
+                "summary": f"History failed: {exc}",
+            }
+
+    @server.tool()
+    def get_species_countries(scientific_name: str, taxon_id: int | None = None) -> dict[str, Any]:
+        """Retrieve countries of occurrence with native, introduced, or vagrant presence status."""
+        try:
+            countries = api.get_species_countries(
+                scientific_name=scientific_name, taxon_id=taxon_id
+            )
+            lines = [
+                f"- {c.get('name')} ({c.get('presence')}, {c.get('origin')})"
+                for c in countries[:10]
+            ]
+            summary = (
+                f"Countries for {scientific_name} ({len(countries)} recorded):\n" + "\n".join(lines)
+                if countries
+                else f"No countries recorded for {scientific_name}."
+            )
+            return {"countries": countries, "count": len(countries), "summary": summary}
+        except IucnError as exc:
+            return {
+                "error": str(exc),
+                "countries": [],
+                "count": 0,
+                "summary": f"Countries lookup failed: {exc}",
+            }
+
+    @server.tool()
+    def get_species_use_and_trade(
+        scientific_name: str, taxon_id: int | None = None
+    ) -> dict[str, Any]:
+        """Fetch commercial use, international trade pressures, and CITES exploitation records."""
+        try:
+            trade = api.get_species_use_and_trade(
+                scientific_name=scientific_name, taxon_id=taxon_id
+            )
+            lines = [f"- {t.get('purpose')} [{t.get('scale')}]" for t in trade]
+            summary = (
+                f"Trade & use pressures for {scientific_name}:\n" + "\n".join(lines)
+                if trade
+                else f"No trade or commercial harvest pressures recorded for {scientific_name}."
+            )
+            return {"use_and_trade": trade, "count": len(trade), "summary": summary}
+        except IucnError as exc:
+            return {
+                "error": str(exc),
+                "use_and_trade": [],
+                "count": 0,
+                "summary": f"Trade lookup failed: {exc}",
+            }
+
     return server
 
 
